@@ -220,7 +220,7 @@ export default function MarketplacePage() {
                 className="group inline-flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur transition hover:bg-white/20"
               >
                 <Store className="h-3.5 w-3.5 hidden sm:block" />
-                {isMobile ? "My Shop" : "Manage Shop"}
+                {isMobile ? "Manage my Shop" : "Manage my Shop"}
                 <ArrowRight className="h-3 w-3 transition group-hover:translate-x-0.5" />
               </a>
 
