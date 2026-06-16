@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useCallback, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, MapPin, Phone, Store } from "lucide-react";
+import { ChevronLeft, MapPin, Menu, Phone, Store, X } from "lucide-react";
 import {
   productsForShop,
-  type Category,
   type Product,
   type Shop,
 } from "@/src/lib/shop-data";
@@ -23,51 +22,60 @@ export default function ShopDetail({ shop }: { shop: Shop }) {
   const isMobile = useIsMobile();
 
   const cats = useMemo(() => {
-    const set = new Set<Category>();
-    items.forEach((i) => set.add(i.category));
-    return ["All", ...Array.from(set)] as string[];
+    const set = new Set<string>();
+    items.forEach((i) => { if (i.type) set.add(i.type); });
+    return ["All", ...Array.from(set).sort()] as string[];
   }, [items]);
 
-  const singleCategory = cats.length === 2; // ["All", "X"] means only one real category
+  const singleCategory = cats.length === 2;
 
   const [active, setActive] = useState<string>("All");
-  const [typeFilter, setTypeFilter] = useState<string>("All");
   const [openProduct, setOpenProduct] = useState<Product | null>(null);
+  const [showCatMenu, setShowCatMenu] = useState(false);
+
+  const catScrollRef = useRef<HTMLDivElement>(null);
+  const catPillRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const drawerListRef = useRef<HTMLDivElement>(null);
+  const drawerItemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  const scrollPillIntoView = useCallback((cat: string) => {
+    const container = catScrollRef.current;
+    const pill = catPillRefs.current[cat];
+    if (!container || !pill) return;
+    const offset =
+      pill.offsetLeft - container.clientWidth / 2 + pill.offsetWidth / 2;
+    container.scrollTo({ left: offset, behavior: "smooth" });
+  }, []);
 
   useEffect(() => {
-    setTypeFilter("All");
-  }, [active]);
+    if (!showCatMenu) return;
+    const id = setTimeout(() => {
+      drawerItemRefs.current[active]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }, 80);
+    return () => clearTimeout(id);
+  }, [showCatMenu, active]);
 
-  const availableTypes = useMemo(() => {
-    const set = new Set<string>();
-    items.forEach((p) => {
-      if ((active === "All" || p.category === active) && p.type)
-        set.add(p.type);
-    });
-    return Array.from(set).sort();
-  }, [active, items]);
+  useEffect(() => {
+    scrollPillIntoView(active);
+  }, [active, scrollPillIntoView]);
 
   const filtered = useMemo(() => {
     return items.filter((p) => {
-      const matchC = active === "All" || p.category === active;
-      const matchT = typeFilter === "All" || p.type === typeFilter;
-      return matchC && matchT;
+      return active === "All" || p.type === active;
     });
-  }, [items, active, typeFilter]);
+  }, [items, active]);
 
-  /* ---- pagination: 20/page desktop, 10/page mobile ---- */
   const perPage = isMobile ? 10 : 20;
   const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    setPage(1);
-  }, [active, typeFilter, perPage]);
+  useEffect(() => { setPage(1); }, [active, perPage]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-20 pt-6 sm:px-6 lg:px-8">
+
       {/* Back */}
       <Link
         href="/"
@@ -100,10 +108,7 @@ export default function ShopDetail({ shop }: { shop: Shop }) {
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {shop.categories.map((c) => (
-                <span
-                  key={c}
-                  className="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700"
-                >
+                <span key={c} className="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700">
                   {c}
                 </span>
               ))}
@@ -115,66 +120,137 @@ export default function ShopDetail({ shop }: { shop: Shop }) {
         </span>
       </div>
 
-      {/* Sticky filter bar */}
+      {/* ── Sticky filter bar ── */}
       <div className="sticky top-0 z-30 -mx-4 mb-6 border-b border-gray-100 bg-white/90 backdrop-blur-md sm:-mx-6 lg:-mx-8">
-        {!singleCategory && (
-          <div className="flex gap-2 overflow-x-auto px-4 py-3 sm:px-6 lg:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {cats.map((c) => {
-              const isActive = active === c;
-              return (
-                <button
-                  key={c}
-                  onClick={() => setActive(c)}
-                  className={`relative shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
-                    isActive
-                      ? ""
-                      : "border border-gray-100 bg-white text-gray-600 hover:text-violet-700"
-                  }`}
-                >
-                  {isActive && (
-                    <motion.span
-                      layoutId="shop-cat-indicator"
-                      className="absolute inset-0 rounded-full bg-violet-600"
-                      transition={{ type: "spring", stiffness: 400, damping: 32 }}
-                    />
-                  )}
-                  <span className={`relative ${isActive ? "text-white" : ""}`}>
-                    {c}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
+        <div className="relative flex items-center gap-2 py-3 pl-4 pr-4 sm:pl-6 sm:pr-6 lg:pl-8 lg:pr-8">
 
-        {availableTypes.length > 0 && (
-          <div className={`bg-white/70 ${!singleCategory ? "border-t border-gray-100" : ""}`}>
-            <div className="flex gap-2 overflow-x-auto px-4 py-3 sm:px-6 lg:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {(["All", ...availableTypes] as string[]).map((t) => {
-                const isActive = typeFilter === t;
+          {/* Scrollable pill strip */}
+          {!singleCategory && (
+            <div
+              ref={catScrollRef}
+              className="flex flex-1 gap-2 overflow-x-auto pr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {cats.map((c) => {
+                const isActive = active === c;
                 return (
                   <button
-                    key={t}
-                    onClick={() => setTypeFilter(t)}
-                    className={`shrink-0 rounded-full px-3.5 py-1 text-xs font-semibold transition ${
+                    key={c}
+                    ref={(el) => { catPillRefs.current[c] = el; }}
+                    onClick={() => setActive(c)}
+                    className={`relative shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition sm:text-sm ${
                       isActive
-                        ? "bg-gray-900 text-white shadow-sm"
-                        : "border border-gray-200 bg-white text-gray-600 hover:border-gray-900 hover:text-gray-900"
+                        ? ""
+                        : "border border-gray-200 bg-white text-gray-600 hover:border-violet-300 hover:text-violet-700"
                     }`}
                   >
-                    {t}
+                    {isActive && (
+                      <motion.span
+                        layoutId="shop-cat-indicator"
+                        className="absolute inset-0 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600"
+                        transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                      />
+                    )}
+                    <span className={`relative ${isActive ? "text-white" : ""}`}>{c}</span>
                   </button>
                 );
               })}
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Spacer when pills hidden */}
+          {singleCategory && <div className="flex-1" />}
+
+          {/* Hamburger — mobile only, always rendered */}
+          <button
+            onClick={() => setShowCatMenu((s) => !s)}
+            className="sm:hidden flex-shrink-0 grid h-9 w-9 place-items-center rounded-full border-2 border-gray-400 bg-white shadow-lg"
+            aria-label="Browse categories"
+          >
+            {showCatMenu
+              ? <X className="h-5 w-5 text-black" />
+              : <Menu className="h-5 w-5 text-black" />
+            }
+          </button>
+
+          {/* Dropdown */}
+          <AnimatePresence>
+            {showCatMenu && (
+              <>
+                <motion.div
+                  className="fixed inset-0 z-30 sm:hidden"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setShowCatMenu(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ type: "spring", stiffness: 360, damping: 28 }}
+                  className="absolute right-3 top-full z-40 mt-1 w-[90vw] max-w-xs rounded-xl border border-gray-100 bg-white shadow-xl sm:hidden"
+                >
+                  <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                    <h4 className="text-sm font-semibold text-gray-900">Filter by type</h4>
+                    <button
+                      onClick={() => setShowCatMenu(false)}
+                      className="grid h-7 w-7 place-items-center rounded-full border border-gray-200 text-gray-500 transition hover:bg-gray-50"
+                      aria-label="Close"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div
+                    ref={drawerListRef}
+                    className="max-h-[60vh] overflow-y-auto overscroll-contain py-2"
+                  >
+                    {cats.map((c) => {
+                      const isActive = active === c;
+                      return (
+                        <button
+                          key={`menu-${c}`}
+                          ref={(el) => { drawerItemRefs.current[c] = el; }}
+                          onClick={() => {
+                            setActive(c);
+                            setShowCatMenu(false);
+                            scrollPillIntoView(c);
+                          }}
+                          className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium transition hover:bg-gray-50 ${
+                            isActive ? "text-violet-700" : "text-gray-700"
+                          }`}
+                        >
+                          <span className={`h-2 w-2 flex-shrink-0 rounded-full transition ${
+                            isActive ? "bg-violet-600" : "bg-gray-300"
+                          }`} />
+                          <span className="flex-1 text-left">{c}</span>
+                          {isActive && (
+                            <span className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-r from-violet-600 to-indigo-600">
+                              <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="none">
+                                <path
+                                  d="M2 6l3 3 5-5"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Grid */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={`${active}-${typeFilter}-${page}`}
+          key={`${active}-${page}`}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
@@ -182,25 +258,14 @@ export default function ShopDetail({ shop }: { shop: Shop }) {
           className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
         >
           {paged.map((p, i) => (
-            <ProductCard
-              key={p.id}
-              product={p}
-              index={i}
-              onOpen={() => setOpenProduct(p)}
-            />
+            <ProductCard key={p.id} product={p} index={i} onOpen={() => setOpenProduct(p)} />
           ))}
-          {filtered.length === 0 && (
-            <EmptyState label="No items in this category." />
-          )}
+          {filtered.length === 0 && <EmptyState label="No items in this category." />}
         </motion.div>
       </AnimatePresence>
 
       <Pagination page={page} totalPages={totalPages} onChange={setPage} />
-
-      <ProductModal
-        product={openProduct}
-        onClose={() => setOpenProduct(null)}
-      />
+      <ProductModal product={openProduct} onClose={() => setOpenProduct(null)} />
     </div>
   );
 }
