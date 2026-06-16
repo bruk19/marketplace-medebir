@@ -50,14 +50,20 @@ export default function MarketplacePage() {
   const q = query.trim().toLowerCase();
 
   const [showTypesMenu, setShowTypesMenu] = useState(false);
+  const [showSubTypeMenu, setShowSubTypeMenu] = useState(false);
 
-  // ── refs for scroll-to-active behaviour ──
+  // ── refs for category pill row ──
   const catScrollRef = useRef<HTMLDivElement>(null);
   const catPillRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const drawerListRef = useRef<HTMLDivElement>(null);
   const drawerItemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
-  // centres the chosen pill in the horizontal scroll row
+  // ── refs for sub-type pill row ──
+  const typeScrollRef = useRef<HTMLDivElement>(null);
+  const typePillRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const typeDrawerListRef = useRef<HTMLDivElement>(null);
+  const typeDrawerItemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
   const scrollPillIntoView = useCallback((cat: string) => {
     const container = catScrollRef.current;
     const pill = catPillRefs.current[cat];
@@ -67,17 +73,31 @@ export default function MarketplacePage() {
     container.scrollTo({ left: offset, behavior: "smooth" });
   }, []);
 
-  // when the drawer opens, scroll the active row into view after the animation starts
+  const scrollTypePillIntoView = useCallback((type: string) => {
+    const container = typeScrollRef.current;
+    const pill = typePillRefs.current[type];
+    if (!container || !pill) return;
+    const offset =
+      pill.offsetLeft - container.clientWidth / 2 + pill.offsetWidth / 2;
+    container.scrollTo({ left: offset, behavior: "smooth" });
+  }, []);
+
   useEffect(() => {
     if (!showTypesMenu) return;
     const id = setTimeout(() => {
-      const el = drawerItemRefs.current[category];
-      el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      drawerItemRefs.current[category]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }, 80);
     return () => clearTimeout(id);
   }, [showTypesMenu, category]);
 
-  // keep the pill row centred whenever category changes from anywhere
+  useEffect(() => {
+    if (!showSubTypeMenu) return;
+    const id = setTimeout(() => {
+      typeDrawerItemRefs.current[typeFilter]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }, 80);
+    return () => clearTimeout(id);
+  }, [showSubTypeMenu]);
+
   useEffect(() => {
     scrollPillIntoView(category);
   }, [category, scrollPillIntoView]);
@@ -117,6 +137,9 @@ export default function MarketplacePage() {
     return Array.from(set).sort();
   }, [category]);
 
+  // show hamburger on sub-type row when 6+ types
+  const showTypeHamburger = availableTypes.length >= 6;
+
   const items = useMemo(() => {
     return PRODUCTS.filter((p) => {
       const matchQ =
@@ -155,21 +178,17 @@ export default function MarketplacePage() {
 
       {/* ── COMPACT HERO ── */}
       <section className="relative overflow-hidden bg-gradient-to-r from-violet-600 via-violet-700 to-indigo-700">
-        {/* Subtle grid pattern overlay */}
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.07]"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h32v1H0zm0 16h32v1H0zM0 0v32h1V0zm16 0v32h1V0z' fill='%23ffffff'/%3E%3C/svg%3E")`,
           }}
         />
-        {/* Glow orbs */}
         <div className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-indigo-400/20 blur-2xl" />
 
         <div className="relative mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-          {/* Top row: brand + CTAs */}
           <div className="flex items-center justify-between gap-4">
-            {/* Brand */}
             <motion.div
               initial={{ opacity: 0, x: -12 }}
               animate={{ opacity: 1, x: 0 }}
@@ -185,7 +204,6 @@ export default function MarketplacePage() {
               </div>
             </motion.div>
 
-            {/* Headline (center, hidden on very small) */}
             <motion.div
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -206,7 +224,6 @@ export default function MarketplacePage() {
               </div>
             </motion.div>
 
-            {/* CTAs */}
             <motion.div
               initial={{ opacity: 0, x: 12 }}
               animate={{ opacity: 1, x: 0 }}
@@ -220,7 +237,7 @@ export default function MarketplacePage() {
                 className="group inline-flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur transition hover:bg-white/20"
               >
                 <Store className="h-3.5 w-3.5 hidden sm:block" />
-                {isMobile ? "Manage my Shop" : "Manage my Shop"}
+                Manage my Shop
                 <ArrowRight className="h-3 w-3 transition group-hover:translate-x-0.5" />
               </a>
 
@@ -236,7 +253,6 @@ export default function MarketplacePage() {
             </motion.div>
           </div>
 
-          {/* Mobile headline */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -246,14 +262,12 @@ export default function MarketplacePage() {
             Shop local. <span className="text-violet-200">Discover everything.</span>
           </motion.p>
 
-          {/* Search + stats row */}
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.15 }}
             className="mt-4 flex items-center gap-3"
           >
-            {/* Search */}
             <div className="relative flex-1 max-w-xl">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
@@ -271,8 +285,6 @@ export default function MarketplacePage() {
                 </button>
               )}
             </div>
-
-            {/* Stat pills (desktop) */}
             <div className="hidden lg:flex items-center gap-2">
               {[
                 { value: SHOPS.length, label: "Shops" },
@@ -294,9 +306,9 @@ export default function MarketplacePage() {
 
       {/* ── Sticky category bar ── */}
       <div className="sticky top-0 z-30 border-b border-gray-100 bg-white/90 backdrop-blur-md shadow-sm">
-        <div className="relative mx-auto flex max-w-7xl items-center gap-2 px-4 py-3 sm:px-6 lg:px-8">
 
-          {/* Scrollable pill row */}
+        {/* ── Main category row ── */}
+        <div className="relative mx-auto flex max-w-7xl items-center gap-2 px-4 py-3 sm:px-6 lg:px-8">
           <div
             ref={catScrollRef}
             className="flex flex-1 gap-2 overflow-x-auto pr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -327,7 +339,7 @@ export default function MarketplacePage() {
             })}
           </div>
 
-          {/* Hamburger — mobile only */}
+          {/* Hamburger — mobile only for main categories */}
           <button
             onClick={() => setShowTypesMenu((s) => !s)}
             className="sm:hidden flex-shrink-0 grid h-9 w-9 place-items-center rounded-full border-2 border-gray-400 bg-white shadow-lg"
@@ -338,108 +350,187 @@ export default function MarketplacePage() {
               : <Menu className="h-5 w-5 text-black" />
             }
           </button>
-        </div>
 
-        {/* ── Mobile category drawer (dropdown) ── */}
-        <AnimatePresence>
-          {showTypesMenu && (
-            <>
-              {/* Backdrop — closes menu on tap outside */}
-              <motion.div
-                className="fixed inset-0 z-30 sm:hidden"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowTypesMenu(false)}
-              />
-
-              <motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ type: "spring", stiffness: 360, damping: 28 }}
-                className="absolute right-3 top-full z-40 mt-1 w-[90vw] max-w-xs rounded-xl border border-gray-100 bg-white shadow-xl sm:hidden"
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-                  <h4 className="text-sm font-semibold text-gray-900">Shop Types</h4>
-                  <button
-                    onClick={() => setShowTypesMenu(false)}
-                    className="grid h-7 w-7 place-items-center rounded-full border border-gray-200 text-gray-500 transition hover:bg-gray-50"
-                    aria-label="Close"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                {/* Scrollable list */}
-                <div
-                  ref={drawerListRef}
-                  className="max-h-[60vh] overflow-y-auto overscroll-contain py-2"
+          {/* Main category dropdown */}
+          <AnimatePresence>
+            {showTypesMenu && (
+              <>
+                <motion.div
+                  className="fixed inset-0 z-30 sm:hidden"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setShowTypesMenu(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ type: "spring", stiffness: 360, damping: 28 }}
+                  className="absolute right-3 top-full z-40 mt-1 w-[90vw] max-w-xs rounded-xl border border-gray-100 bg-white shadow-xl sm:hidden"
                 >
-                  {categories.map((c) => {
-                    const active = category === c;
-                    return (
-                      <button
-                        key={`menu-${c}`}
-                        ref={(el) => { drawerItemRefs.current[c] = el; }}
-                        onClick={() => {
-                          setCategory(c);
-                          setShowTypesMenu(false);
-                          scrollPillIntoView(c);
-                        }}
-                        className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium transition hover:bg-gray-50 ${
-                          active ? "text-violet-700" : "text-gray-700"
-                        }`}
-                      >
-                        <span
-                          className={`h-2 w-2 flex-shrink-0 rounded-full transition ${
-                            active ? "bg-violet-600" : "bg-gray-300"
+                  <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                    <h4 className="text-sm font-semibold text-gray-900">Shop Types</h4>
+                    <button
+                      onClick={() => setShowTypesMenu(false)}
+                      className="grid h-7 w-7 place-items-center rounded-full border border-gray-200 text-gray-500 transition hover:bg-gray-50"
+                      aria-label="Close"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div
+                    ref={drawerListRef}
+                    className="max-h-[60vh] overflow-y-auto overscroll-contain py-2"
+                  >
+                    {categories.map((c) => {
+                      const active = category === c;
+                      return (
+                        <button
+                          key={`menu-${c}`}
+                          ref={(el) => { drawerItemRefs.current[c] = el; }}
+                          onClick={() => {
+                            setCategory(c);
+                            setShowTypesMenu(false);
+                            scrollPillIntoView(c);
+                          }}
+                          className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium transition hover:bg-gray-50 ${
+                            active ? "text-violet-700" : "text-gray-700"
                           }`}
-                        />
-                        <span className="flex-1 text-left">{c}</span>
-                        {active && (
-                          <span className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-r from-violet-600 to-indigo-600">
-                            <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="none">
-                              <path
-                                d="M2 6l3 3 5-5"
-                                stroke="currentColor"
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+                        >
+                          <span className={`h-2 w-2 flex-shrink-0 rounded-full transition ${
+                            active ? "bg-violet-600" : "bg-gray-300"
+                          }`} />
+                          <span className="flex-1 text-left">{c}</span>
+                          {active && (
+                            <span className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-r from-violet-600 to-indigo-600">
+                              <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="none">
+                                <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* ── Type sub-filter row ── */}
         {tab === "items" && availableTypes.length > 0 && (
           <div className="border-t border-gray-100 bg-white/70">
-            <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-2.5 sm:px-6 lg:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {(["All", ...availableTypes] as string[]).map((t) => {
-                const active = typeFilter === t;
-                return (
-                  <button
-                    key={t}
-                    onClick={() => setTypeFilter(t)}
-                    className={`shrink-0 rounded-full px-3.5 py-1 text-xs font-semibold transition ${
-                      active
-                        ? "bg-gray-900 text-white shadow-sm"
-                        : "border border-gray-200 bg-white text-gray-600 hover:border-gray-900 hover:text-gray-900"
-                    }`}
-                  >
-                    {t}
-                  </button>
-                );
-              })}
+            <div className="relative mx-auto flex max-w-7xl items-center gap-2 px-4 py-2.5 sm:px-6 lg:px-8">
+
+              {/* Scrollable type pills */}
+              <div
+                ref={typeScrollRef}
+                className="flex flex-1 gap-2 overflow-x-auto pr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
+                {(["All", ...availableTypes] as string[]).map((t) => {
+                  const active = typeFilter === t;
+                  return (
+                    <button
+                      key={t}
+                      ref={(el) => { typePillRefs.current[t] = el; }}
+                      onClick={() => {
+                        setTypeFilter(t);
+                        scrollTypePillIntoView(t);
+                      }}
+                      className={`shrink-0 rounded-full px-3.5 py-1 text-xs font-semibold transition ${
+                        active
+                          ? "bg-gray-900 text-white shadow-sm"
+                          : "border border-gray-200 bg-white text-gray-600 hover:border-gray-900 hover:text-gray-900"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Hamburger — always on mobile, on desktop when 6+ types */}
+              {(showTypeHamburger || isMobile) && (
+                <button
+                  onClick={() => setShowSubTypeMenu((s) => !s)}
+                  className="flex-shrink-0 grid h-8 w-8 place-items-center rounded-full border-2 border-gray-400 bg-white shadow-lg"
+                  aria-label="Filter by type"
+                >
+                  {showSubTypeMenu
+                    ? <X className="h-4 w-4 text-black" />
+                    : <Menu className="h-4 w-4 text-black" />
+                  }
+                </button>
+              )}
+
+              {/* Sub-type dropdown */}
+              <AnimatePresence>
+                {showSubTypeMenu && (
+                  <>
+                    <motion.div
+                      className="fixed inset-0 z-30"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onClick={() => setShowSubTypeMenu(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ type: "spring", stiffness: 360, damping: 28 }}
+                      className="absolute right-3 top-full z-40 mt-1 w-[90vw] max-w-xs rounded-xl border border-gray-100 bg-white shadow-xl"
+                    >
+                      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                        <h4 className="text-sm font-semibold text-gray-900">Filter by type</h4>
+                        <button
+                          onClick={() => setShowSubTypeMenu(false)}
+                          className="grid h-7 w-7 place-items-center rounded-full border border-gray-200 text-gray-500 transition hover:bg-gray-50"
+                          aria-label="Close"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div
+                        ref={typeDrawerListRef}
+                        className="max-h-[60vh] overflow-y-auto overscroll-contain py-2"
+                      >
+                        {(["All", ...availableTypes] as string[]).map((t) => {
+                          const active = typeFilter === t;
+                          return (
+                            <button
+                              key={`type-menu-${t}`}
+                              ref={(el) => { typeDrawerItemRefs.current[t] = el; }}
+                              onClick={() => {
+                                setTypeFilter(t);
+                                setShowSubTypeMenu(false);
+                                scrollTypePillIntoView(t);
+                              }}
+                              className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium transition hover:bg-gray-50 ${
+                                active ? "text-violet-700" : "text-gray-700"
+                              }`}
+                            >
+                              <span className={`h-2 w-2 flex-shrink-0 rounded-full transition ${
+                                active ? "bg-violet-600" : "bg-gray-300"
+                              }`} />
+                              <span className="flex-1 text-left">{t}</span>
+                              {active && (
+                                <span className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-r from-violet-600 to-indigo-600">
+                                  <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="none">
+                                    <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         )}
@@ -447,7 +538,6 @@ export default function MarketplacePage() {
 
       {/* ── Main content ── */}
       <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
-        {/* Tabs + result hint */}
         <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
           <div className="inline-flex rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
             {(["shops", "items"] as Tab[]).map((t) => (
