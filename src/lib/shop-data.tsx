@@ -241,7 +241,14 @@ const PRODUCT_NAMES: Record<Category, string[]> = {
 };
 
 const PRODUCT_TYPES: Record<Category, string[]> = {
-  "Boutique/Fashion": ["Dress", "Handbag", "Footwear", "Accessory", "Outerwear", "Top", "Bottom"],
+  "Boutique/Fashion": [
+    "Dress", "Handbag", "Footwear", "Accessory", "Outerwear",
+    "Top", "Bottom", "Activewear", "Swimwear", "Lingerie",
+    "Sleepwear", "Maternity", "Plus Size", "Kidswear", "Menswear",
+    "Denim", "Leather", "Knitwear", "Athleisure", "Formal Wear",
+    "Casual Wear", "Traditional", "Workwear", "Streetwear", "Loungewear",
+    "Jacket", "Skirt", "Suit", "Jumpsuit", "Scarf & Wrap",
+  ],
   Pharmacy: ["Pain reliever", "Supplement", "Medical device", "Antibiotic", "Skincare"],
   "Auto Spare Shop": ["Brake system", "Lubricant", "Battery", "Filter", "Suspension"],
   "Construction Material Shop": ["Binder", "Reinforcement", "Finishing", "Insulation", "Plumbing"],

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useCallback, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, MapPin, Menu, Phone, Store, X } from "lucide-react";
+import { ChevronLeft, MapPin, Menu, Phone, Search, Store, X } from "lucide-react";
 import {
   productsForShop,
   type Product,
@@ -28,10 +28,15 @@ export default function ShopDetail({ shop }: { shop: Shop }) {
   }, [items]);
 
   const singleCategory = cats.length === 2;
+  const showHamburger = cats.length >= 6;
 
   const [active, setActive] = useState<string>("All");
+  const [query, setQuery] = useState("");
   const [openProduct, setOpenProduct] = useState<Product | null>(null);
   const [showCatMenu, setShowCatMenu] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  const q = query.trim().toLowerCase();
 
   const catScrollRef = useRef<HTMLDivElement>(null);
   const catPillRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -61,14 +66,21 @@ export default function ShopDetail({ shop }: { shop: Shop }) {
 
   const filtered = useMemo(() => {
     return items.filter((p) => {
-      return active === "All" || p.type === active;
+      const matchType = active === "All" || p.type === active;
+      const matchQ =
+        !q ||
+        p.name.toLowerCase().includes(q) ||
+        (p.brand ?? "").toLowerCase().includes(q) ||
+        (p.type ?? "").toLowerCase().includes(q) ||
+        (p.model ?? "").toLowerCase().includes(q);
+      return matchType && matchQ;
     });
-  }, [items, active]);
+  }, [items, active, q]);
 
   const perPage = isMobile ? 10 : 20;
   const [page, setPage] = useState(1);
 
-  useEffect(() => { setPage(1); }, [active, perPage]);
+  useEffect(() => { setPage(1); }, [active, q, perPage]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
@@ -85,7 +97,7 @@ export default function ShopDetail({ shop }: { shop: Shop }) {
       </Link>
 
       {/* Shop header */}
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 overflow-hidden rounded-2xl ring-2 ring-violet-100">
             {shop.logo ? (
@@ -122,7 +134,58 @@ export default function ShopDetail({ shop }: { shop: Shop }) {
 
       {/* ── Sticky filter bar ── */}
       <div className="sticky top-0 z-30 -mx-4 mb-6 border-b border-gray-100 bg-white/90 backdrop-blur-md sm:-mx-6 lg:-mx-8">
-        <div className="relative flex items-center gap-2 py-3 pl-4 pr-4 sm:pl-6 sm:pr-6 lg:pl-8 lg:pr-8">
+
+        {/* ── Search bar row ── */}
+        <div className="relative px-4 pt-1 pb-2 sm:px-6 lg:px-8">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              placeholder={`Search in ${shop.name}…`}
+              className={`w-full rounded-xl border bg-white py-2.5 pl-10 pr-9 text-sm placeholder:text-gray-400 focus:outline-none transition-all duration-200 ${
+                searchFocused
+                  ? "border-violet-400 ring-2 ring-violet-100 shadow-md"
+                  : "border-gray-200 shadow-sm hover:border-gray-300"
+              }`}
+            />
+            <AnimatePresence>
+              {query && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.15 }}
+                  onClick={() => setQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 grid h-5 w-5 place-items-center rounded-full bg-gray-200 text-gray-500 hover:bg-gray-300 transition"
+                >
+                  <X className="h-3 w-3" />
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Result hint */}
+          <AnimatePresence>
+            {q && (
+              <motion.p
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.15 }}
+                className="absolute left-4 bottom-[-22px] text-xs text-gray-500 sm:left-6 lg:left-8"
+              >
+                {filtered.length} result{filtered.length !== 1 ? "s" : ""} for{" "}
+                <span className="font-semibold text-gray-700">"{query}"</span>
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* ── Category pill row ── */}
+        <div className={`relative flex items-center gap-2 py-3 pl-4 pr-4 sm:pl-6 sm:pr-6 lg:pl-8 lg:pr-8 ${q ? "mt-4" : ""}`}>
 
           {/* Scrollable pill strip */}
           {!singleCategory && (
@@ -160,24 +223,26 @@ export default function ShopDetail({ shop }: { shop: Shop }) {
           {/* Spacer when pills hidden */}
           {singleCategory && <div className="flex-1" />}
 
-          {/* Hamburger — mobile only, always rendered */}
-          <button
-            onClick={() => setShowCatMenu((s) => !s)}
-            className="sm:hidden flex-shrink-0 grid h-9 w-9 place-items-center rounded-full border-2 border-gray-400 bg-white shadow-lg"
-            aria-label="Browse categories"
-          >
-            {showCatMenu
-              ? <X className="h-5 w-5 text-black" />
-              : <Menu className="h-5 w-5 text-black" />
-            }
-          </button>
+          {/* Hamburger */}
+          {(showHamburger || isMobile) && (
+            <button
+              onClick={() => setShowCatMenu((s) => !s)}
+              className="flex-shrink-0 grid h-9 w-9 place-items-center rounded-full border-2 border-gray-400 bg-white shadow-lg"
+              aria-label="Browse categories"
+            >
+              {showCatMenu
+                ? <X className="h-5 w-5 text-black" />
+                : <Menu className="h-5 w-5 text-black" />
+              }
+            </button>
+          )}
 
           {/* Dropdown */}
           <AnimatePresence>
             {showCatMenu && (
               <>
                 <motion.div
-                  className="fixed inset-0 z-30 sm:hidden"
+                  className="fixed inset-0 z-30"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -188,7 +253,7 @@ export default function ShopDetail({ shop }: { shop: Shop }) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -6 }}
                   transition={{ type: "spring", stiffness: 360, damping: 28 }}
-                  className="absolute right-3 top-full z-40 mt-1 w-[90vw] max-w-xs rounded-xl border border-gray-100 bg-white shadow-xl sm:hidden"
+                  className="absolute right-3 top-full z-40 mt-1 w-[90vw] max-w-xs rounded-xl border border-gray-100 bg-white shadow-xl"
                 >
                   <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                     <h4 className="text-sm font-semibold text-gray-900">Filter by type</h4>
@@ -250,7 +315,7 @@ export default function ShopDetail({ shop }: { shop: Shop }) {
       {/* Grid */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={`${active}-${page}`}
+          key={`${active}-${q}-${page}`}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
@@ -260,7 +325,9 @@ export default function ShopDetail({ shop }: { shop: Shop }) {
           {paged.map((p, i) => (
             <ProductCard key={p.id} product={p} index={i} onOpen={() => setOpenProduct(p)} />
           ))}
-          {filtered.length === 0 && <EmptyState label="No items in this category." />}
+          {filtered.length === 0 && (
+            <EmptyState label={q ? `No results for "${query}".` : "No items in this category."} />
+          )}
         </motion.div>
       </AnimatePresence>
 
